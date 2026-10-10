@@ -100,6 +100,7 @@ export interface UserProfile {
   restTimerSeconds: number;
   soundEnabled: boolean;
   unit: 'kg' | 'lbs';
+  alternateSquatDeadlift?: boolean;
 }
 
 export type Language = 'sv' | 'en';

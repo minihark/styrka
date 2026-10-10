@@ -2,17 +2,50 @@ import { Program } from '../types';
 
 export const DEFAULT_PROGRAMS: Program[] = [
   {
+    id: 'stronglifts-5x5-alternating',
+    name: '5x5 Alternating (Squats & Deadlifts)',
+    nameSv: '5x5 Alternerande (Böj & Marklyft)',
+    description: 'The preferred linear strength program: Squats in Workout A, Deadlifts in Workout B. Spares the lower back and knees, and gives full energy to heavy deadlifts.',
+    descriptionSv: 'Det smartare 5x5-upplägget: Knäböj i Pass A, Marklyft i Pass B. Skonsammare för ländrygg och knän, och låter dig gå all-in i tunga marklyft utan utmattade ben.',
+    cycleType: 'ab_alternating',
+    workouts: [
+      {
+        id: 'alt-5x5-a',
+        name: 'Workout A (Squat, Bench, Row)',
+        nameSv: 'Pass A (Knäböj, Bänkpress, Stångrodd)',
+        dayTag: 'A',
+        exerciseIds: ['barbell-squat', 'barbell-bench', 'barbell-row'],
+        targetSets: 5,
+        targetReps: 5,
+      },
+      {
+        id: 'alt-5x5-b',
+        name: 'Workout B (Deadlift, Press, Chins)',
+        nameSv: 'Pass B (Marklyft, Militärpress, Chins)',
+        dayTag: 'B',
+        exerciseIds: ['deadlift', 'overhead-press', 'pull-ups'],
+        targetSets: 5,
+        targetReps: 5,
+        customSetOverrides: {
+          deadlift: { sets: 3, reps: 5 }, // 3 heavy working sets of Deadlifts
+          'pull-ups': { sets: 3, reps: 8 },
+        },
+      },
+    ],
+  },
+
+  {
     id: 'stronglifts-5x5-classic',
-    name: 'StrongLifts 5x5 (Classic Barbell)',
-    nameSv: 'StrongLifts 5x5 (Klassisk Skivstång)',
-    description: 'The proven linear progression strength program. Three compound barbell movements per workout, 3 days a week. Simple, brutal, and effective.',
-    descriptionSv: 'Den beprövade linjära styrkeklassikern. Tre tunga basövningar per pass, alternera pass A och B. Enkelt, tidseffektivt och ger garanterade resultat.',
+    name: 'StrongLifts 5x5 (Squat Every Workout)',
+    nameSv: 'StrongLifts 5x5 (Knäböj Varje Pass)',
+    description: 'The 2008 classic: Squat 3 times a week (both Workout A and B), plus deadlift on B days. Demanding on recovery.',
+    descriptionSv: 'Klassiska originalet: Knäböj 3 gånger per vecka (i både pass A och B), plus marklyft på B-passet. Kräver maximal återhämtning.',
     cycleType: 'ab_alternating',
     workouts: [
       {
         id: 'workout-a',
         name: 'Workout A',
-        nameSv: 'Pass A (Böj, Bänk, Rodd)',
+        nameSv: 'Pass A (Knäböj, Bänk, Rodd)',
         dayTag: 'A',
         exerciseIds: ['barbell-squat', 'barbell-bench', 'barbell-row'],
         targetSets: 5,
@@ -21,7 +54,7 @@ export const DEFAULT_PROGRAMS: Program[] = [
       {
         id: 'workout-b',
         name: 'Workout B',
-        nameSv: 'Pass B (Böj, Press, Marklyft)',
+        nameSv: 'Pass B (Knäböj, Press, Marklyft)',
         dayTag: 'B',
         exerciseIds: ['barbell-squat', 'overhead-press', 'deadlift'],
         targetSets: 5,
@@ -37,8 +70,8 @@ export const DEFAULT_PROGRAMS: Program[] = [
     id: 'stronglifts-5x5-flexible',
     name: '5x5 Flexible (Barbell & Dumbbells)',
     nameSv: '5x5 Flexibel (Skivstång & Hantlar)',
-    description: 'Same 5x5 principles but pre-tuned with dumbbell alternatives for crowded gyms or home setups.',
-    descriptionSv: 'Samma 5x5-principer med smart blandning av skivstång och hantlar när racket är upptaget eller för hemmaträning.',
+    description: 'Alternating lower body with smart dumbbell alternatives for home setups or crowded gyms.',
+    descriptionSv: 'Alternerande underkropp med smart blandning av skivstång och hantlar för hemmaträning eller upptagna gym.',
     cycleType: 'ab_alternating',
     workouts: [
       {
@@ -53,13 +86,14 @@ export const DEFAULT_PROGRAMS: Program[] = [
       {
         id: 'flex-b',
         name: 'Workout B',
-        nameSv: 'Pass B (Knäböj, Hantelaxlar, RDL)',
+        nameSv: 'Pass B (Marklyft, Hantelaxlar, Chins)',
         dayTag: 'B',
-        exerciseIds: ['barbell-squat', 'seated-dumbbell-press', 'romanian-deadlift'],
+        exerciseIds: ['deadlift', 'seated-dumbbell-press', 'pull-ups'],
         targetSets: 5,
         targetReps: 5,
         customSetOverrides: {
-          'romanian-deadlift': { sets: 3, reps: 8 },
+          deadlift: { sets: 3, reps: 5 },
+          'pull-ups': { sets: 3, reps: 8 },
         },
       },
     ],

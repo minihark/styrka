@@ -18,6 +18,7 @@ const DEFAULT_PROFILE: UserProfile = {
   restTimerSeconds: 120, // 2 minutes standard for 5x5
   soundEnabled: true,
   unit: 'kg',
+  alternateSquatDeadlift: true,
 };
 
 // ==================== WORKOUT LOGS ====================
@@ -67,7 +68,13 @@ export function getActiveProgramId(): string {
   if (typeof window === 'undefined') return DEFAULT_PROGRAMS[0].id;
   try {
     const saved = localStorage.getItem(STORAGE_KEY_ACTIVE_PROGRAM);
-    if (saved) return saved;
+    if (saved && saved !== 'stronglifts-5x5-classic') return saved;
+    // If saved was classic, check if user actually completed any workouts with classic
+    if (saved === 'stronglifts-5x5-classic') {
+      const logs = getWorkoutLogs();
+      const hasClassicLogs = logs.some((l) => l.programId === 'stronglifts-5x5-classic');
+      if (hasClassicLogs) return saved;
+    }
   } catch (e) {}
   return DEFAULT_PROGRAMS[0].id;
 }
@@ -222,7 +229,13 @@ export function getUserProfile(): UserProfile {
   if (typeof window === 'undefined') return DEFAULT_PROFILE;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PROFILE);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.alternateSquatDeadlift === undefined) {
+        parsed.alternateSquatDeadlift = true;
+      }
+      return parsed;
+    }
   } catch (e) {}
   return DEFAULT_PROFILE;
 }

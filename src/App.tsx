@@ -113,6 +113,8 @@ export function App() {
             onTriggerRestTimer={(secs) => setActiveRestSeconds(secs)}
             onWorkoutFinished={handleWorkoutFinished}
             lang={lang}
+            profile={profile}
+            onProfileChange={setProfile}
           />
         ) : (
           <HistoryStatsView

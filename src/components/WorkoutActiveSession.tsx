@@ -7,11 +7,18 @@ import {
   WorkoutSessionLog,
   Exercise,
   Language,
+  UserProfile,
 } from '../types';
 import { EXERCISE_CATALOG } from '../data/exercises';
-import { getExerciseHistoryInsight, saveWorkoutLog } from '../utils/storage';
+import {
+  getExerciseHistoryInsight,
+  saveWorkoutLog,
+  getUserProfile,
+  saveUserProfile,
+} from '../utils/storage';
 import { playIronClick, playWorkoutComplete, playClick } from '../utils/audio';
 import confetti from 'canvas-confetti';
+import { AddExerciseModal } from './AddExerciseModal';
 import {
   Dumbbell,
   BookOpen,
@@ -22,11 +29,15 @@ import {
   RotateCcw,
   Sparkles,
   ChevronDown,
+  ChevronUp,
   ArrowRight,
   TrendingUp,
   Flame,
   Clock,
   Layers,
+  Trash2,
+  Repeat,
+  Search,
 } from 'lucide-react';
 
 interface WorkoutActiveSessionProps {
@@ -38,6 +49,8 @@ interface WorkoutActiveSessionProps {
   onTriggerRestTimer: (seconds: number) => void;
   onWorkoutFinished: () => void;
   lang: Language;
+  profile?: UserProfile;
+  onProfileChange?: (p: UserProfile) => void;
 }
 
 export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
@@ -49,8 +62,15 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
   onTriggerRestTimer,
   onWorkoutFinished,
   lang,
+  profile,
+  onProfileChange,
 }) => {
   const currentWorkout = program.workouts[activeWorkoutIndex] || program.workouts[0];
+
+  // Alternating Squat / Deadlift mode preference
+  const [alternateSquatDeadlift, setAlternateSquatDeadlift] = useState<boolean>(() => {
+    return profile?.alternateSquatDeadlift ?? true;
+  });
 
   // Active exercises state in current session
   const [exercisesState, setExercisesState] = useState<WorkoutExerciseState[]>([]);
@@ -58,9 +78,31 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [swapMenuOpenExerciseId, setSwapMenuOpenExerciseId] = useState<string | null>(null);
 
+  // Add Exercise / Swap Modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [swapTargetIndex, setSwapTargetIndex] = useState<number | null>(null);
+
   // Initialize exercises state when workout changes
   useEffect(() => {
-    const initialized: WorkoutExerciseState[] = currentWorkout.exerciseIds.map((exId) => {
+    let exerciseList = [...currentWorkout.exerciseIds];
+
+    // If alternating squats and deadlifts is active and this is a classic 5x5 routine:
+    // If Workout B has both squat and deadlift, drop squat so deadlift takes center stage!
+    if (alternateSquatDeadlift && (program.id.includes('stronglifts') || program.id.includes('5x5'))) {
+      if (currentWorkout.dayTag === 'B' || currentWorkout.id.includes('b')) {
+        const hasSquat = exerciseList.includes('barbell-squat');
+        const hasDeadlift = exerciseList.includes('deadlift');
+        if (hasSquat && hasDeadlift) {
+          // Drop squat from B day and ensure deadlift + pull-ups are in place
+          exerciseList = exerciseList.filter((id) => id !== 'barbell-squat');
+          if (!exerciseList.includes('pull-ups')) {
+            exerciseList.push('pull-ups');
+          }
+        }
+      }
+    }
+
+    const initialized: WorkoutExerciseState[] = exerciseList.map((exId) => {
       const insight = getExerciseHistoryInsight(exId);
       const ex = EXERCISE_CATALOG.find((e) => e.id === exId);
       const overrides = currentWorkout.customSetOverrides?.[exId];
@@ -87,7 +129,7 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
     setExercisesState(initialized);
     setElapsedSeconds(0);
     setIsTimerRunning(true);
-  }, [currentWorkout.id]);
+  }, [currentWorkout.id, alternateSquatDeadlift]);
 
   // Session elapsed timer
   useEffect(() => {
@@ -182,6 +224,7 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
       return updated;
     });
     setSwapMenuOpenExerciseId(null);
+    setSwapTargetIndex(null);
   };
 
   // Add / remove sets
@@ -215,6 +258,66 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
       updated[exIndex] = ex;
       return updated;
     });
+  };
+
+  // Remove exercise from today's workout
+  const handleDeleteExercise = (exIndex: number) => {
+    playClick();
+    setExercisesState((prev) => prev.filter((_, idx) => idx !== exIndex));
+  };
+
+  // Move exercise up or down in order
+  const handleMoveExercise = (exIndex: number, direction: 'up' | 'down') => {
+    playClick();
+    setExercisesState((prev) => {
+      const targetIndex = direction === 'up' ? exIndex - 1 : exIndex + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const copy = [...prev];
+      const temp = copy[exIndex];
+      copy[exIndex] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return copy;
+    });
+  };
+
+  // Add new exercise to session from catalog
+  const handleAddExerciseToWorkout = (newExerciseId: string) => {
+    playIronClick();
+    const insight = getExerciseHistoryInsight(newExerciseId);
+    const ex = EXERCISE_CATALOG.find((e) => e.id === newExerciseId);
+    const initialWeight = insight.suggestedWeightKg;
+
+    const newExState: WorkoutExerciseState = {
+      exerciseId: newExerciseId,
+      sets: Array.from({ length: 3 }, (_, i) => ({
+        setIndex: i + 1,
+        targetReps: ex?.category === 'deadlift' ? 5 : 8,
+        actualReps: null,
+        weightKg: initialWeight,
+        isCompleted: false,
+      })),
+      restSeconds: 120,
+    };
+
+    setExercisesState((prev) => [...prev, newExState]);
+  };
+
+  // Toggle Alternating Squats & Deadlifts
+  const handleToggleAlternateSquatDeadlift = () => {
+    playIronClick();
+    const nextVal = !alternateSquatDeadlift;
+    setAlternateSquatDeadlift(nextVal);
+
+    // Save to user profile
+    const currentProfile = profile || getUserProfile();
+    const updatedProfile: UserProfile = {
+      ...currentProfile,
+      alternateSquatDeadlift: nextVal,
+    };
+    saveUserProfile(updatedProfile);
+    if (onProfileChange) {
+      onProfileChange(updatedProfile);
+    }
   };
 
   // Calculate live volume
@@ -302,7 +405,7 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
               {/* Cycle Auto-suggestion pill */}
               <span className="text-xs text-iron-400 font-medium">
                 {lang === 'sv'
-                  ? `Automatiskt förvald baserat på din träningscykel (${activeWorkoutIndex + 1}/${program.workouts.length})`
+                  ? `Automatiskt förvald baserat på din cykel (${activeWorkoutIndex + 1}/${program.workouts.length})`
                   : `Next in program cycle (${activeWorkoutIndex + 1}/${program.workouts.length})`}
               </span>
             </div>
@@ -312,7 +415,7 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
             </h1>
 
             {/* Quick Switcher between Pass A / Pass B in the cycle */}
-            <div className="flex items-center gap-1.5 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
               <span className="text-[11px] font-bold text-iron-400 mr-1">
                 {lang === 'sv' ? 'Byt pass:' : 'Switch workout:'}
               </span>
@@ -332,6 +435,41 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
                   {w.dayTag}: {lang === 'sv' ? w.nameSv.split(' ')[0] : w.name.split(' ')[0]}
                 </button>
               ))}
+            </div>
+
+            {/* Alternating Squat & Deadlift Quick Toggle */}
+            <div className="pt-2">
+              <button
+                onClick={handleToggleAlternateSquatDeadlift}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border cursor-pointer ${
+                  alternateSquatDeadlift
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
+                    : 'bg-iron-950 border-iron-800 text-iron-400 hover:text-iron-200 hover:bg-iron-850'
+                }`}
+                title={
+                  lang === 'sv'
+                    ? 'Växla mellan att alternera Knäböj & Marklyft eller köra Knäböj varje pass'
+                    : 'Toggle between alternating Squats & Deadlifts or Squatting every workout'
+                }
+              >
+                <Repeat className="w-3.5 h-3.5 text-amber-400" />
+                <span>
+                  {alternateSquatDeadlift
+                    ? (lang === 'sv'
+                        ? 'Underkropp: Alternerar Knäböj & Marklyft'
+                        : 'Lower Body: Alternating Squats & Deadlifts')
+                    : (lang === 'sv'
+                        ? 'Underkropp: Knäböj Varje Pass (Klassisk)'
+                        : 'Lower Body: Squat Every Workout (Classic)')}
+                </span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                    alternateSquatDeadlift ? 'bg-amber-500/30 text-amber-200' : 'bg-iron-800 text-iron-400'
+                  }`}
+                >
+                  {alternateSquatDeadlift ? (lang === 'sv' ? 'PÅ' : 'ON') : (lang === 'sv' ? 'AV' : 'OFF')}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -413,94 +551,150 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
                       {lang === 'sv' ? ex.nameSv : ex.name}
                     </h2>
 
-                    {/* Swap to Alternative button */}
-                    {alternatives.length > 0 && (
-                      <div className="relative">
-                        <button
-                          onClick={() => {
-                            playClick();
-                            setSwapMenuOpenExerciseId(
-                              swapMenuOpenExerciseId === ex.id ? null : ex.id
-                            );
-                          }}
-                          className="px-2 py-1 rounded-lg text-xs font-bold text-amber-400 hover:text-amber-300 bg-iron-950 border border-iron-800 hover:border-amber-500/40 transition flex items-center gap-1 cursor-pointer"
-                          title="Byt till en annan övningsvariant (t.ex. hantlar)"
-                        >
-                          <span>{lang === 'sv' ? 'Byt' : 'Swap'}</span>
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
+                    {/* Swap to Alternative dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => {
+                          playClick();
+                          setSwapMenuOpenExerciseId(
+                            swapMenuOpenExerciseId === ex.id ? null : ex.id
+                          );
+                        }}
+                        className="px-2 py-1 rounded-lg text-xs font-bold text-amber-400 hover:text-amber-300 bg-iron-950 border border-iron-800 hover:border-amber-500/40 transition flex items-center gap-1 cursor-pointer"
+                        title={lang === 'sv' ? 'Byt övningsvariant' : 'Swap exercise variation'}
+                      >
+                        <span>{lang === 'sv' ? 'Byt' : 'Swap'}</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
 
-                        {/* Swap Menu Popover */}
-                        {swapMenuOpenExerciseId === ex.id && (
-                          <div className="absolute left-0 top-8 z-30 w-64 bg-iron-950 border border-iron-700 rounded-2xl p-2 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                            <span className="text-[10px] uppercase font-bold text-iron-500 px-2 py-1 block">
-                              {lang === 'sv' ? 'Byt till variant:' : 'Swap variation:'}
+                      {/* Swap Menu Popover */}
+                      {swapMenuOpenExerciseId === ex.id && (
+                        <div className="absolute left-0 top-8 z-30 w-64 bg-iron-950 border border-iron-700 rounded-2xl p-2 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                          <span className="text-[10px] uppercase font-bold text-iron-500 px-2 py-1 block">
+                            {lang === 'sv' ? 'Snabba varianter:' : 'Quick variations:'}
+                          </span>
+                          {alternatives.map((alt) => (
+                            <button
+                              key={alt.id}
+                              onClick={() => handleSwapExercise(exIndex, alt.id)}
+                              className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-iron-850 hover:text-amber-300 transition flex items-center justify-between"
+                            >
+                              <span>{lang === 'sv' ? alt.nameSv : alt.name}</span>
+                              <span className="text-[10px] text-iron-500 uppercase font-mono">
+                                {alt.equipment === 'dumbbell'
+                                  ? (lang === 'sv' ? 'Hantel' : 'DB')
+                                  : (lang === 'sv' ? 'Stång' : 'Bar')}
+                              </span>
+                            </button>
+                          ))}
+
+                          {/* Browse entire catalog */}
+                          <button
+                            onClick={() => {
+                              playClick();
+                              setSwapMenuOpenExerciseId(null);
+                              setSwapTargetIndex(exIndex);
+                              setIsAddModalOpen(true);
+                            }}
+                            className="w-full px-2.5 py-2 mt-1 rounded-xl text-left text-xs font-bold text-amber-400 hover:bg-iron-850 hover:text-amber-300 transition flex items-center gap-1.5 border-t border-iron-800/80"
+                          >
+                            <Search className="w-3.5 h-3.5" />
+                            <span>
+                              {lang === 'sv' ? 'Bläddra i hela katalogen...' : 'Browse entire catalog...'}
                             </span>
-                            {alternatives.map((alt) => (
-                              <button
-                                key={alt.id}
-                                onClick={() => handleSwapExercise(exIndex, alt.id)}
-                                className="w-full px-2.5 py-1.5 rounded-xl text-left text-xs font-bold text-slate-200 hover:bg-iron-850 hover:text-amber-300 transition flex items-center justify-between"
-                              >
-                                <span>{lang === 'sv' ? alt.nameSv : alt.name}</span>
-                                <span className="text-[10px] text-iron-500 uppercase font-mono">
-                                  {alt.equipment === 'dumbbell' ? 'Hantel' : 'Stång'}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Right Action Buttons: "Guide" and "Plate Calculator" */}
-                <div className="flex items-center gap-2">
-                  {/* Discreet Guide button requested by Viktor for his wife & learning form */}
+                {/* Right Action Buttons: Reorder, Guide, Plate Calculator, Remove */}
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Reorder Up / Down */}
+                  <div className="flex items-center bg-iron-950/80 border border-iron-800 rounded-xl p-0.5">
+                    <button
+                      onClick={() => handleMoveExercise(exIndex, 'up')}
+                      disabled={exIndex === 0}
+                      className="p-1 rounded-lg text-iron-400 hover:text-white disabled:opacity-20 transition cursor-pointer"
+                      title={lang === 'sv' ? 'Flytta upp' : 'Move up'}
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleMoveExercise(exIndex, 'down')}
+                      disabled={exIndex === exercisesState.length - 1}
+                      className="p-1 rounded-lg text-iron-400 hover:text-white disabled:opacity-20 transition cursor-pointer"
+                      title={lang === 'sv' ? 'Flytta ner' : 'Move down'}
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Discreet Guide button */}
                   <button
-                    onClick={() => {
-                      playClick();
-                      onOpenGuide(ex);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-iron-800 hover:bg-iron-700 text-amber-300 text-xs font-bold transition cursor-pointer shadow-sm"
-                    title={lang === 'sv' ? 'Instruktioner & formtips' : 'Instructions & form cues'}
+                    onClick={() => onOpenGuide(ex)}
+                    className="px-3 py-1.5 rounded-xl bg-iron-950 border border-iron-800 hover:border-amber-500/50 hover:bg-iron-850 text-iron-300 hover:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title={lang === 'sv' ? 'Visa teknikinstruktioner och formtips' : 'View form cues and guide'}
                   >
                     <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{lang === 'sv' ? 'Guide & Form' : 'Guide & Form'}</span>
+                    <span className="hidden sm:inline">
+                      {lang === 'sv' ? 'Instruktioner' : 'Form Guide'}
+                    </span>
+                    <span className="sm:hidden">{lang === 'sv' ? 'Guide' : 'Guide'}</span>
                   </button>
 
-                  {/* Plate Calculator (for barbells) */}
+                  {/* Olympic Barbell Plate Calculator */}
                   {isBarbell && (
                     <button
-                      onClick={() => {
-                        playClick();
-                        onOpenPlateCalc(currentWeight, (w) => handleSetWeight(exIndex, w));
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-iron-950 hover:bg-iron-850 border border-iron-800 text-iron-300 hover:text-white text-xs font-bold transition cursor-pointer"
-                      title={lang === 'sv' ? 'Öppna viktskivskalkylator' : 'Open plate calculator'}
+                      onClick={() =>
+                        onOpenPlateCalc(currentWeight, (newWeight) =>
+                          handleSetWeight(exIndex, newWeight)
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-xl bg-iron-950 border border-iron-800 hover:border-amber-500/50 hover:bg-iron-850 text-iron-300 hover:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      title={lang === 'sv' ? 'Kalkylator för skivstångsvikter' : 'Olympic plate calculator'}
                     >
-                      <Disc3 className="w-3.5 h-3.5 text-iron-400" />
-                      <span className="hidden sm:inline">{lang === 'sv' ? 'Skivor' : 'Plates'}</span>
+                      <Disc3 className="w-3.5 h-3.5 text-sky-400" />
+                      <span className="hidden sm:inline">
+                        {lang === 'sv' ? 'Vikter' : 'Plates'}
+                      </span>
                     </button>
                   )}
+
+                  {/* Delete Exercise button */}
+                  <button
+                    onClick={() => handleDeleteExercise(exIndex)}
+                    className="p-2 rounded-xl text-iron-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    title={lang === 'sv' ? 'Ta bort övning från dagens pass' : 'Remove exercise from workout'}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* Weight Adjustment Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-iron-950/70 p-3.5 rounded-2xl border border-iron-800/80">
+              {/* Weight Adjustment Controller Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-iron-950/60 p-3 rounded-2xl border border-iron-800/80">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase font-bold text-iron-400">
-                    {lang === 'sv' ? 'Vikt:' : 'Weight:'}
+                  <span className="text-xs font-bold uppercase text-iron-500 tracking-wider">
+                    {lang === 'sv' ? 'Arbetsvikt:' : 'Work Weight:'}
                   </span>
-                  <div className="flex items-baseline gap-1 font-mono">
-                    <span className="text-2xl font-black text-amber-400">{currentWeight}</span>
-                    <span className="text-xs font-bold text-iron-400">kg</span>
+                  <div className="flex items-baseline gap-1">
+                    <input
+                      type="number"
+                      step={ex.weightIncrementKg}
+                      value={currentWeight}
+                      onChange={(e) =>
+                        handleSetWeight(exIndex, parseFloat(e.target.value) || 0)
+                      }
+                      className="w-20 px-2 py-1 rounded-xl bg-iron-900 border border-iron-700 text-lg font-black font-mono text-white text-center focus:border-amber-500 outline-none"
+                    />
+                    <span className="text-xs font-extrabold text-iron-400">kg</span>
                   </div>
                 </div>
 
                 {/* Quick Increment buttons */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handleAdjustWeight(exIndex, -5)}
                     className="px-2 py-1 rounded-lg bg-iron-900 hover:bg-iron-800 text-iron-300 font-mono text-xs font-bold transition"
@@ -531,7 +725,11 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
               {/* Set Bubbles Grid (Tactile, Big Tap Targets!) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-bold text-iron-400 uppercase tracking-wider px-1">
-                  <span>{lang === 'sv' ? 'Set & Reps' : 'Sets & Reps'}</span>
+                  <span>
+                    {lang === 'sv'
+                      ? `Set & Reps (${exState.sets.length} set)`
+                      : `Sets & Reps (${exState.sets.length} sets)`}
+                  </span>
                   <span>
                     {lang === 'sv' ? 'Klicka på cirkeln för att bocka av set' : 'Tap bubble to check set'}
                   </span>
@@ -542,7 +740,6 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
                     const isDone = set.isCompleted;
                     const reps = set.actualReps;
                     const hitTarget = reps !== null && reps >= set.targetReps;
-                    const partial = reps !== null && reps < set.targetReps;
 
                     return (
                       <button
@@ -576,20 +773,48 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
                     );
                   })}
 
-                  {/* Add Set button */}
-                  <button
-                    onClick={() => handleAddSet(exIndex)}
-                    className="h-16 sm:h-20 rounded-2xl border border-dashed border-iron-800 hover:border-iron-700 text-iron-500 hover:text-iron-300 flex flex-col items-center justify-center transition cursor-pointer"
-                    title="Lägg till ett extra set"
-                  >
-                    <Plus className="w-5 h-5" />
-                    <span className="text-[10px] font-bold mt-1">+ Set</span>
-                  </button>
+                  {/* Add / Remove Set buttons */}
+                  <div className="flex gap-1.5 h-16 sm:h-20">
+                    <button
+                      onClick={() => handleAddSet(exIndex)}
+                      className="flex-1 rounded-2xl border border-dashed border-iron-800 hover:border-iron-700 text-iron-500 hover:text-iron-300 flex flex-col items-center justify-center transition cursor-pointer"
+                      title={lang === 'sv' ? 'Lägg till ett extra set' : 'Add a set'}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-[10px] font-bold mt-0.5">+ Set</span>
+                    </button>
+
+                    {exState.sets.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveSet(exIndex)}
+                        className="flex-1 rounded-2xl border border-dashed border-iron-850 hover:border-rose-900/50 text-iron-600 hover:text-rose-400 flex flex-col items-center justify-center transition cursor-pointer"
+                        title={lang === 'sv' ? 'Ta bort sista setet' : 'Remove last set'}
+                      >
+                        <Minus className="w-4 h-4" />
+                        <span className="text-[10px] font-bold mt-0.5">- Set</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
+
+        {/* Add Exercise to Current Workout Button */}
+        <div className="pt-2 flex items-center justify-center">
+          <button
+            onClick={() => {
+              playClick();
+              setSwapTargetIndex(null);
+              setIsAddModalOpen(true);
+            }}
+            className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-iron-900 border border-dashed border-iron-700 hover:border-amber-500/70 hover:bg-iron-850 text-iron-300 hover:text-amber-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+          >
+            <Plus className="w-4 h-4 text-amber-400" />
+            <span>{lang === 'sv' ? 'Lägg till övning i passet' : 'Add Exercise to Workout'}</span>
+          </button>
+        </div>
       </section>
 
       {/* FINISH WORKOUT BUTTON (Bottom Bar) */}
@@ -603,6 +828,29 @@ export const WorkoutActiveSession: React.FC<WorkoutActiveSessionProps> = ({
           <ArrowRight className="w-5 h-5 text-iron-950" />
         </button>
       </div>
+
+      {/* Add / Swap Exercise Modal */}
+      <AddExerciseModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setSwapTargetIndex(null);
+        }}
+        onSelectExercise={(newExId) => {
+          if (swapTargetIndex !== null) {
+            handleSwapExercise(swapTargetIndex, newExId);
+          } else {
+            handleAddExerciseToWorkout(newExId);
+          }
+        }}
+        currentExerciseIds={exercisesState.map((e) => e.exerciseId)}
+        lang={lang}
+        title={
+          swapTargetIndex !== null
+            ? (lang === 'sv' ? 'Byt till övning' : 'Swap Exercise')
+            : undefined
+        }
+      />
     </div>
   );
 };

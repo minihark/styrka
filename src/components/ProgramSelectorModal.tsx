@@ -93,6 +93,11 @@ export const ProgramSelectorModal: React.FC<ProgramSelectorModalProps> = ({
                           A/B Cykel
                         </span>
                       )}
+                      {prog.id === 'stronglifts-5x5-alternating' && (
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          {lang === 'sv' ? 'Alternerande Böj/Marklyft' : 'Alternating Squat/Deadlift'}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-iron-400 leading-relaxed">
                       {lang === 'sv' ? prog.descriptionSv : prog.description}
