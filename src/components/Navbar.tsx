@@ -10,6 +10,7 @@ import {
   User,
   Flame,
   Layers,
+  Disc3,
 } from 'lucide-react';
 import { playClick } from '../utils/audio';
 
@@ -20,6 +21,7 @@ interface NavbarProps {
   onViewChange: (view: 'workout' | 'history') => void;
   onOpenProgramSelector: () => void;
   onOpenSyncModal: () => void;
+  onOpenPlateCalc: () => void;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
 }
@@ -31,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onViewChange,
   onOpenProgramSelector,
   onOpenSyncModal,
+  onOpenPlateCalc,
   lang,
   onLanguageChange,
 }) => {
@@ -108,6 +111,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">{lang === 'sv' ? 'Historik' : 'History'}</span>
             </button>
           </div>
+
+          {/* Quick Plate Calculator Button */}
+          <button
+            onClick={() => {
+              playClick();
+              onOpenPlateCalc();
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-iron-800 bg-iron-900 hover:bg-iron-850 hover:border-amber-500/40 text-amber-400 text-xs font-bold transition cursor-pointer"
+            title={lang === 'sv' ? 'Öppna Viktskivskalkylator' : 'Open Barbell Plate Calculator'}
+          >
+            <Disc3 className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">
+              {lang === 'sv' ? 'Skivor' : 'Plates'}
+            </span>
+          </button>
 
           {/* Profile & Cloud Sync Button */}
           <button

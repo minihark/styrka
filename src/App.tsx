@@ -95,6 +95,7 @@ export function App() {
         onViewChange={setActiveView}
         onOpenProgramSelector={() => setIsProgramSelectorOpen(true)}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
+        onOpenPlateCalc={() => setPlateCalcData({ weightKg: 60 })}
         lang={lang}
         onLanguageChange={setLang}
       />
@@ -120,6 +121,7 @@ export function App() {
           <HistoryStatsView
             logs={logs}
             onDeleteLog={handleDeleteLog}
+            onOpenPlateCalc={(weight) => setPlateCalcData({ weightKg: weight })}
             lang={lang}
           />
         )}
