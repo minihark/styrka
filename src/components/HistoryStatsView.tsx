@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import { WorkoutSessionLog, Language } from '../types';
 import { EXERCISE_CATALOG } from '../data/exercises';
 import {
-  Calendar,
-  Trophy,
   Dumbbell,
   Trash2,
   TrendingUp,
-  Sparkles,
   Disc3,
 } from 'lucide-react';
 import { playClick } from '../utils/audio';
@@ -39,10 +36,9 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
   const totalVolumeKg = logs.reduce((sum, l) => sum + (l.totalVolumeKg || 0), 0);
 
   // Calculate all-time PRs (Epley 1RM)
-  const keyExercises = ['barbell-squat', 'barbell-bench', 'deadlift', 'overhead-press', 'barbell-row'];
   const prs: Record<string, { weightKg: number; reps: number; estimated1RM: number }> = {};
 
-  keyExercises.forEach((id) => {
+  CHART_LIFTS.forEach(({ id }) => {
     let best1RM = 0;
     let bestWeight = 0;
     let bestReps = 0;
@@ -129,11 +125,11 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
 
   // SVG Chart Geometry
   const chartW = 640;
-  const chartH = 190;
+  const chartH = 180;
   const padL = 42;
   const padR = 24;
-  const padT = 24;
-  const padB = 32;
+  const padT = 22;
+  const padB = 30;
   const plotW = chartW - padL - padR;
   const plotH = chartH - padT - padB;
 
@@ -157,11 +153,6 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
     .map((d, i) => `${getX(i, liftSeries.length)},${getY(d.workWeightKg)}`)
     .join(' ');
 
-  const delta1RM =
-    liftSeries.length >= 2
-      ? liftSeries[liftSeries.length - 1].est1RM - liftSeries[0].est1RM
-      : 0;
-
   const repMaxRows = [
     { pct: 100, reps: '1 RM', factor: 1.0 },
     { pct: 92, reps: '3 RM', factor: 0.92 },
@@ -171,190 +162,101 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-200">
-      {/* Top Stats Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-iron-900/80 border border-iron-800 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] uppercase font-bold text-iron-400 tracking-wider">
-            {lang === 'sv' ? 'Genomförda pass' : 'Workouts'}
-          </span>
-          <div className="text-2xl font-black font-mono text-white">
-            {totalWorkouts}
+    <div className="space-y-6 max-w-3xl mx-auto select-none">
+      {/* Header Strip */}
+      <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b-2 border-[#262626] pb-4">
+        <div>
+          <div className="text-[11px] font-mono uppercase text-[#FF5500] font-bold tracking-wider">
+            {lang === 'sv' ? 'STYRKEPROGRESSION & HISTORIK' : 'STRENGTH PROGRESSION & LOGBOOK'}
           </div>
+          <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-wide text-[#F5F3EF] leading-none mt-1">
+            {lang === 'sv' ? 'Loggbok & Estimerad 1RM' : 'Logbook & Est. 1RM'}
+          </h1>
         </div>
 
-        <div className="bg-iron-900/80 border border-iron-800 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] uppercase font-bold text-iron-400 tracking-wider">
-            {lang === 'sv' ? 'Total volym' : 'Total Volume'}
-          </span>
-          <div className="text-2xl font-black font-mono text-amber-400">
-            {totalVolumeKg >= 1000
-              ? `${(totalVolumeKg / 1000).toFixed(1)} ton`
-              : `${totalVolumeKg} kg`}
+        <div className="flex items-center gap-4 font-mono text-xs text-[#9A978E]">
+          <div>
+            <span className="text-[#6E6C65] uppercase">Pass: </span>
+            <strong className="text-[#F5F3EF]">{totalWorkouts}</strong>
+          </div>
+          <div>
+            <span className="text-[#6E6C65] uppercase">Volym: </span>
+            <strong className="text-[#FF5500]">
+              {totalVolumeKg >= 1000
+                ? `${(totalVolumeKg / 1000).toFixed(1)} t`
+                : `${totalVolumeKg} kg`}
+            </strong>
           </div>
         </div>
+      </section>
 
-        <div className="bg-iron-900/80 border border-iron-800 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] uppercase font-bold text-iron-400 tracking-wider">
-            {lang === 'sv' ? 'Bästa Knäböj (1RM)' : 'Squat PR (1RM)'}
-          </span>
-          <div className="text-2xl font-black font-mono text-emerald-400">
-            {prs['barbell-squat']
-              ? `${prs['barbell-squat'].estimated1RM} kg`
-              : '—'}
+      {/* 1RM Selector & Chart Card */}
+      <section className="bg-[#181818] border border-[#282828] rounded p-4 sm:p-6 space-y-4">
+        {/* Lift Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#242424] pb-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {CHART_LIFTS.map((lift) => {
+              const isSelected = selectedLiftId === lift.id;
+              const prVal = prs[lift.id]?.estimated1RM;
+              return (
+                <button
+                  key={lift.id}
+                  onClick={() => {
+                    playClick();
+                    setSelectedLiftId(lift.id);
+                  }}
+                  className={`px-3 py-1 rounded-sm font-display font-bold uppercase tracking-wider text-sm transition cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#FF5500] text-[#111111]'
+                      : 'bg-[#111111] border border-[#282828] text-[#9A978E] hover:text-[#F5F3EF]'
+                  }`}
+                >
+                  <span>{lang === 'sv' ? lift.labelSv : lift.labelEn}</span>
+                  {prVal && (
+                    <span className="ml-1.5 font-mono text-xs opacity-80">
+                      {prVal}kg
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        <div className="bg-iron-900/80 border border-iron-800 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] uppercase font-bold text-iron-400 tracking-wider">
-            {lang === 'sv' ? 'Bästa Bänk (1RM)' : 'Bench PR (1RM)'}
-          </span>
-          <div className="text-2xl font-black font-mono text-sky-400">
-            {prs['barbell-bench']
-              ? `${prs['barbell-bench'].estimated1RM} kg`
-              : '—'}
-          </div>
-        </div>
-      </div>
-
-      {/* PR Showcase Cards with 1-Click Plate Calculator */}
-      <div className="bg-iron-900/85 border border-iron-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>
-              {lang === 'sv'
-                ? 'Personbästan (Estimerad 1RM)'
-                : 'Personal Records (Est. 1RM)'}
-            </span>
-          </div>
           <button
             onClick={() => {
               playClick();
               onOpenPlateCalc(active1RM);
             }}
-            className="px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+            className="px-2.5 py-1 rounded bg-[#111111] border border-[#282828] hover:border-[#FF5500] text-xs font-mono text-[#9A978E] hover:text-[#F5F3EF] flex items-center gap-1.5 transition cursor-pointer"
           >
-            <Disc3 className="w-3.5 h-3.5" />
-            <span>
-              {lang === 'sv' ? 'Öppna Skivkalkylator' : 'Open Plate Loader'}
-            </span>
+            <Disc3 className="w-3.5 h-3.5 text-[#FF5500]" />
+            <span>{active1RM} kg Skivor</span>
           </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {CHART_LIFTS.slice(0, 4).map((item) => {
-            const data = prs[item.id];
-            return (
-              <div
-                key={item.id}
-                onClick={() => {
-                  playClick();
-                  setSelectedLiftId(item.id);
-                  if (data) onOpenPlateCalc(data.estimated1RM);
-                }}
-                className="p-3.5 rounded-2xl bg-iron-950 border border-iron-800/80 hover:border-amber-500/50 space-y-1 text-center cursor-pointer transition group"
-                title={
-                  lang === 'sv'
-                    ? 'Klicka för att visa graf och skivladdning'
-                    : 'Click to view chart and plate loading'
-                }
-              >
-                <div className="text-xs font-bold text-iron-300 group-hover:text-amber-300 transition">
-                  {lang === 'sv' ? item.labelSv : item.labelEn}
-                </div>
-                <div className="text-xl font-black font-mono text-white">
-                  {data ? `${data.estimated1RM} kg` : '—'}
-                </div>
-                {data ? (
-                  <div className="text-[10px] font-mono text-iron-400 flex items-center justify-center gap-1">
-                    <span>
-                      {data.weightKg}kg × {data.reps}
-                    </span>
-                    <Disc3 className="w-3 h-3 text-amber-400 opacity-80" />
-                  </div>
-                ) : (
-                  <div className="text-[10px] font-mono text-iron-600">
-                    {lang === 'sv' ? 'Ej loggad' : 'No logs'}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 1RM Progress Chart & Rep-Max Plate Table */}
-      <div className="bg-iron-900/85 border border-iron-800 rounded-3xl p-5 sm:p-6 space-y-5 shadow-xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
-              <TrendingUp className="w-4 h-4 text-amber-400" />
-              <span>
-                {lang === 'sv'
-                  ? '1RM-Utveckling & Rep-Max Tabell'
-                  : '1RM Progress Chart & Rep-Max Table'}
-              </span>
-            </div>
-            <p className="text-xs text-iron-400">
-              {lang === 'sv'
-                ? 'Välj basövning för att se styrketrend och ladda exakta skivor på stången'
-                : 'Select lift to inspect strength trend and exact barbell plate loading'}
-            </p>
-          </div>
-
-          {delta1RM !== 0 && (
-            <span
-              className={`px-2.5 py-1 rounded-full text-xs font-mono font-black ${
-                delta1RM > 0
-                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-iron-800 text-iron-300'
-              }`}
-            >
-              {delta1RM > 0 ? `+${delta1RM} kg` : `${delta1RM} kg`} 1RM
-            </span>
-          )}
-        </div>
-
-        {/* Lift Selector Pills */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {CHART_LIFTS.map((lift) => (
-            <button
-              key={lift.id}
-              onClick={() => {
-                playClick();
-                setSelectedLiftId(lift.id);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                selectedLiftId === lift.id
-                  ? 'bg-amber-500 text-iron-950 font-black shadow-sm'
-                  : 'bg-iron-950 text-iron-300 hover:text-white border border-iron-800'
-              }`}
-            >
-              {lang === 'sv' ? lift.labelSv : lift.labelEn}
-            </button>
-          ))}
         </div>
 
         {/* SVG Chart */}
         {liftSeries.length > 0 ? (
-          <div className="bg-iron-950 rounded-2xl p-3 sm:p-4 border border-iron-800">
-            <div className="flex items-center justify-end gap-4 text-[11px] font-mono mb-2">
-              <span className="flex items-center gap-1.5 text-amber-400 font-bold">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
-                {lang === 'sv' ? 'Estimerad 1RM (kg)' : 'Est. 1RM (kg)'}
+          <div className="bg-[#111111] rounded p-3 border border-[#242424]">
+            <div className="flex items-center justify-between text-[11px] font-mono mb-2">
+              <span className="text-[#9A978E] uppercase">
+                {lang === 'sv' ? selectedLiftMeta.labelSv : selectedLiftMeta.labelEn} — 1RM: <strong className="text-[#FF5500]">{active1RM} kg</strong>
               </span>
-              <span className="flex items-center gap-1.5 text-sky-400 font-bold">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block" />
-                {lang === 'sv' ? 'Arbetsvikt (kg)' : 'Work Weight (kg)'}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5 text-[#FF5500] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-[#FF5500] inline-block" />
+                  1RM
+                </span>
+                <span className="flex items-center gap-1.5 text-[#9A978E] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-[#9A978E] inline-block" />
+                  {lang === 'sv' ? 'Arbetsvikt' : 'Work Weight'}
+                </span>
+              </div>
             </div>
 
             <svg
               viewBox={`0 0 ${chartW} ${chartH}`}
-              className="w-full h-44 sm:h-48 overflow-visible"
+              className="w-full h-40 sm:h-44 overflow-visible"
             >
-              {/* Horizontal Grid Lines */}
               {[0, 0.5, 1].map((t, idx) => {
                 const val = Math.round(minVal + t * valSpan);
                 const y = getY(val);
@@ -365,14 +267,14 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                       y1={y}
                       x2={chartW - padR}
                       y2={y}
-                      stroke="#27272a"
+                      stroke="#242424"
                       strokeDasharray="4 4"
                     />
                     <text
                       x={padL - 8}
                       y={y + 4}
                       textAnchor="end"
-                      className="fill-zinc-500 text-[10px] font-mono"
+                      className="fill-[#6E6C65] text-[10px] font-mono"
                     >
                       {val}kg
                     </text>
@@ -380,20 +282,19 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                 );
               })}
 
-              {/* Lines */}
               {liftSeries.length > 1 && (
                 <>
                   <polyline
                     fill="none"
-                    stroke="#38bdf8"
-                    strokeWidth="2.5"
+                    stroke="#9A978E"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     points={workWeightPoints}
                   />
                   <polyline
                     fill="none"
-                    stroke="#fbbf24"
+                    stroke="#FF5500"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -402,7 +303,6 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                 </>
               )}
 
-              {/* Data Points */}
               {liftSeries.map((pt, i) => {
                 const cx = getX(i, liftSeries.length);
                 const cy1RM = getY(pt.est1RM);
@@ -412,30 +312,30 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                     <circle
                       cx={cx}
                       cy={cyWork}
-                      r={4}
-                      className="fill-sky-400 stroke-iron-950 stroke-2 cursor-pointer"
+                      r={3.5}
+                      className="fill-[#9A978E] stroke-[#111111] stroke-2 cursor-pointer"
                       onClick={() => onOpenPlateCalc(pt.workWeightKg)}
                     />
                     <circle
                       cx={cx}
                       cy={cy1RM}
-                      r={5}
-                      className="fill-amber-400 stroke-iron-950 stroke-2 cursor-pointer"
+                      r={4.5}
+                      className="fill-[#FF5500] stroke-[#111111] stroke-2 cursor-pointer"
                       onClick={() => onOpenPlateCalc(pt.est1RM)}
                     />
                     <text
                       x={cx}
-                      y={cy1RM - 9}
+                      y={cy1RM - 8}
                       textAnchor="middle"
-                      className="fill-amber-300 text-[10px] font-mono font-bold"
+                      className="fill-[#F5F3EF] text-[10px] font-mono font-bold"
                     >
                       {pt.est1RM}
                     </text>
                     <text
                       x={cx}
-                      y={chartH - 8}
+                      y={chartH - 6}
                       textAnchor="middle"
-                      className="fill-zinc-400 text-[10px] font-mono"
+                      className="fill-[#6E6C65] text-[10px] font-mono"
                     >
                       {pt.date}
                     </text>
@@ -445,25 +345,20 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
             </svg>
           </div>
         ) : (
-          <div className="bg-iron-950/70 rounded-2xl p-4 border border-iron-800/80 text-center space-y-1">
-            <p className="text-xs font-bold text-slate-300">
+          <div className="bg-[#111111] rounded p-3.5 border border-[#242424] flex items-center justify-between text-xs text-[#9A978E]">
+            <span>
               {lang === 'sv'
-                ? `Inga loggade pass för ${selectedLiftMeta.labelSv} ännu — visar referenstabell utifrån ${active1RM} kg 1RM nedan.`
-                : `No logged sessions for ${selectedLiftMeta.labelEn} yet — showing reference table for ${active1RM} kg 1RM below.`}
-            </p>
-            <p className="text-[11px] text-iron-500">
-              {lang === 'sv'
-                ? 'Klicka på valfri rad nedan för att öppna skivkalkylatorn!'
-                : 'Tap any row below to launch the barbell plate loader!'}
-            </p>
+                ? `Referenstabell för ${selectedLiftMeta.labelSv} (${active1RM} kg 1RM) — tryck på en vikt för skivladdning:`
+                : `Reference table for ${selectedLiftMeta.labelEn} (${active1RM} kg 1RM) — tap any weight for plate loading:`}
+            </span>
+            <TrendingUp className="w-4 h-4 text-[#FF5500] shrink-0" />
           </div>
         )}
 
-        {/* Rep-Max & Percentage Table with 1-Click Plate Loader */}
+        {/* Rep-Max Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {repMaxRows.map((row) => {
-            const targetKg =
-              Math.round((active1RM * row.factor) / 2.5) * 2.5;
+            const targetKg = Math.round((active1RM * row.factor) / 2.5) * 2.5;
             return (
               <button
                 key={row.pct}
@@ -471,70 +366,57 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                   playClick();
                   onOpenPlateCalc(targetKg);
                 }}
-                className="p-3 rounded-2xl bg-iron-950 hover:bg-iron-900 border border-iron-800 hover:border-amber-500/50 text-left transition cursor-pointer group"
+                className="p-2.5 rounded bg-[#111111] hover:bg-[#1F1F1F] border border-[#282828] hover:border-[#FF5500] text-left transition cursor-pointer"
               >
-                <div className="flex items-center justify-between text-[10px] font-mono text-iron-400">
-                  <span>{row.pct}%</span>
-                  <Disc3 className="w-3 h-3 text-amber-400 opacity-75 group-hover:scale-110 transition-transform" />
-                </div>
-                <div className="text-base font-black font-mono text-white mt-0.5">
-                  {targetKg} kg
-                </div>
-                <div className="text-[10px] font-bold text-amber-400">
-                  {row.reps}
+                <div className="text-[10px] font-mono text-[#6E6C65]">{row.pct}% • {row.reps}</div>
+                <div className="font-mono font-extrabold text-base text-[#F5F3EF] mt-0.5">
+                  {targetKg} <span className="text-xs font-normal text-[#9A978E]">kg</span>
                 </div>
               </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Workout History List */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-iron-400 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-amber-400" />
-          <span>
-            {lang === 'sv' ? 'Tidigare Träningspass' : 'Workout History'}
-          </span>
-        </h3>
+      {/* Chronological Workout Logbook */}
+      <section className="space-y-3 pb-12">
+        <h2 className="font-display font-bold text-lg uppercase tracking-wider text-[#9A978E]">
+          {lang === 'sv' ? 'Loggade Träningspass' : 'Logged Workouts'}
+        </h2>
 
         {logs.length === 0 ? (
-          <div className="p-8 rounded-3xl bg-iron-900/50 border border-dashed border-iron-800 text-center space-y-2">
-            <Dumbbell className="w-8 h-8 text-iron-600 mx-auto" />
-            <h4 className="font-bold text-sm text-iron-300">
+          <div className="p-8 rounded bg-[#181818] border border-dashed border-[#282828] text-center space-y-2">
+            <Dumbbell className="w-7 h-7 text-[#6E6C65] mx-auto" />
+            <div className="font-display font-bold text-lg uppercase text-[#F5F3EF]">
+              {lang === 'sv' ? 'Inga pass loggade ännu' : 'No workouts logged yet'}
+            </div>
+            <p className="text-xs text-[#9A978E] max-w-sm mx-auto">
               {lang === 'sv'
-                ? 'Inga pass loggade än'
-                : 'No workouts logged yet'}
-            </h4>
-            <p className="text-xs text-iron-500 max-w-sm mx-auto">
-              {lang === 'sv'
-                ? 'Starta ditt första 5x5-pass på fliken "Pass" ovan och bocka av dina första set!'
-                : 'Start your first 5x5 workout on the "Workout" tab above!'}
+                ? 'Bocka av dina 5×5 set under Dagens Pass och tryck på Logga & Avsluta Pass.'
+                : 'Check off your 5×5 sets on Today’s Workout and tap Finish & Log Workout.'}
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {logs.map((log) => (
               <div
                 key={log.id}
-                className="bg-iron-900/80 border border-iron-800 hover:border-iron-700 rounded-2xl p-4 sm:p-5 transition space-y-3"
+                className="bg-[#181818] border border-[#282828] rounded p-4 space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-0.5">
+                  <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-base text-white">
+                      <span className="font-display font-black text-xl uppercase tracking-wide text-[#F5F3EF]">
                         {log.workoutName}
                       </span>
-                      <span className="text-[11px] font-mono text-iron-400">
+                      <span className="text-xs font-mono text-[#6E6C65]">
                         • {formatDate(log.completedAt)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-iron-400 font-mono">
-                      <span>Volym: {log.totalVolumeKg} kg</span>
+                    <div className="flex items-center gap-3 text-xs text-[#9A978E] font-mono mt-0.5">
+                      <span>Volym: <strong className="text-[#FF5500]">{log.totalVolumeKg} kg</strong></span>
                       {log.durationSeconds > 0 && (
-                        <span>
-                          Tid: {Math.round(log.durationSeconds / 60)} min
-                        </span>
+                        <span>Tid: {Math.max(1, Math.round(log.durationSeconds / 60))} min</span>
                       )}
                     </div>
                   </div>
@@ -552,21 +434,18 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                         onDeleteLog(log.id);
                       }
                     }}
-                    className="p-1.5 rounded-lg text-iron-500 hover:text-rose-400 hover:bg-rose-950/20 transition cursor-pointer"
+                    className="p-1.5 rounded text-[#6E6C65] hover:text-[#FF5500] transition cursor-pointer"
                     title="Radera pass"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Exercises list in this log */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-iron-800/60">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-[#242424]">
                   {log.exercises.map((exState, idx) => {
                     const completed = exState.sets.filter((s) => s.isCompleted);
                     const weight = completed[0]?.weightKg ?? 0;
-                    const repsStr = completed
-                      .map((s) => s.actualReps ?? 0)
-                      .join('/');
+                    const repsStr = completed.map((s) => s.actualReps ?? 0).join('/');
                     return (
                       <div
                         key={idx}
@@ -576,38 +455,24 @@ export const HistoryStatsView: React.FC<HistoryStatsViewProps> = ({
                             onOpenPlateCalc(weight);
                           }
                         }}
-                        className="p-2.5 rounded-xl bg-iron-950/70 border border-iron-800/80 hover:border-amber-500/40 text-xs space-y-0.5 cursor-pointer transition"
+                        className="p-2.5 rounded-sm bg-[#111111] border border-[#242424] hover:border-[#FF5500] text-xs space-y-0.5 cursor-pointer transition"
                       >
-                        <div className="font-bold text-slate-200 truncate">
+                        <div className="font-bold text-[#F5F3EF] truncate">
                           {getExerciseName(exState.exerciseId)}
                         </div>
-                        <div className="font-mono text-amber-400 font-bold">
+                        <div className="font-mono text-[#FF5500] font-bold">
                           {weight} kg{' '}
-                          <span className="text-iron-400 font-normal">
-                            ({repsStr})
-                          </span>
+                          <span className="text-[#6E6C65] font-normal">({repsStr || '—'})</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-
-                {/* PRs achieved banner */}
-                {log.prsAchieved && log.prsAchieved.length > 0 && (
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 pt-1">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>
-                      {lang === 'sv'
-                        ? 'Nytt personbästa i passet!'
-                        : 'Personal record set!'}
-                    </span>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

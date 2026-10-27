@@ -1,17 +1,6 @@
 import React from 'react';
 import { Language, UserProfile, Program } from '../types';
-import {
-  Dumbbell,
-  BookOpen,
-  Calendar,
-  Cloud,
-  Check,
-  Languages,
-  User,
-  Flame,
-  Layers,
-  Disc3,
-} from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { playClick } from '../utils/audio';
 
 interface NavbarProps {
@@ -33,134 +22,106 @@ export const Navbar: React.FC<NavbarProps> = ({
   onViewChange,
   onOpenProgramSelector,
   onOpenSyncModal,
-  onOpenPlateCalc,
   lang,
-  onLanguageChange,
 }) => {
   return (
-    <header className="sticky top-0 z-30 border-b border-iron-800/80 bg-iron-950/90 backdrop-blur-md w-full select-none">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
-        {/* Brand */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-600 flex items-center justify-center text-lg shadow-md shadow-amber-500/20 ring-1 ring-amber-400/30 flex-shrink-0">
-            🏋️
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-amber-200 via-white to-amber-400 bg-clip-text text-transparent">
-                Styrka
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 hidden sm:inline-block">
-                5x5
-              </span>
-            </div>
-            <p className="text-[11px] text-iron-400 hidden md:block truncate">
-              {lang === 'sv'
-                ? 'Taktil träningsdagbok för skivstång & hantlar'
-                : 'Tactile 5x5 journal for barbells & dumbbells'}
-            </p>
-          </div>
+    <header className="sticky top-0 z-30 border-b border-[#262626] bg-[#111111]/95 backdrop-blur-sm w-full select-none">
+      <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+        {/* Left: Stenciled Gym Brand & Active Program Trigger */}
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => {
+              playClick();
+              onViewChange('workout');
+            }}
+            className="flex items-center gap-2 text-left cursor-pointer group"
+          >
+            <span className="px-1.5 py-0.5 bg-[#FF5500] text-[#111111] font-display font-black text-sm tracking-wider uppercase leading-none">
+              5×5
+            </span>
+            <span className="font-display font-black text-2xl tracking-wider uppercase text-[#F5F3EF] group-hover:text-[#FF5500] transition-colors leading-none">
+              STYRKA
+            </span>
+          </button>
+
+          <span className="text-[#363636] hidden sm:inline">/</span>
+
+          <button
+            onClick={() => {
+              playClick();
+              onOpenProgramSelector();
+            }}
+            className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-[#9A978E] hover:text-[#F5F3EF] transition cursor-pointer truncate max-w-[200px]"
+            title={lang === 'sv' ? 'Byt träningsprogram eller inställningar' : 'Change program or settings'}
+          >
+            <span className="truncate">
+              {lang === 'sv' ? currentProgram.nameSv : currentProgram.name}
+            </span>
+            <span className="text-[10px] text-[#FF5500]">▾</span>
+          </button>
         </div>
 
-        {/* Center / Program Badge (1-click program switch) */}
-        <button
-          onClick={() => {
-            playClick();
-            onOpenProgramSelector();
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-iron-700 bg-iron-900/80 hover:bg-iron-850 hover:border-amber-500/40 text-xs font-bold text-slate-200 transition cursor-pointer max-w-[160px] sm:max-w-xs truncate"
-          title={lang === 'sv' ? 'Byt eller anpassa träningsprogram' : 'Switch or customize program'}
-        >
-          <Layers className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-          <span className="truncate">
-            {lang === 'sv' ? currentProgram.nameSv : currentProgram.name}
-          </span>
-          <span className="text-[10px] text-iron-500 hidden sm:inline font-normal">▾</span>
-        </button>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* View Switcher: Workout vs History */}
-          <div className="flex items-center p-1 bg-iron-900 border border-iron-800 rounded-xl">
+        {/* Right: Segmented Pass/Loggbok Switch + Quiet Settings Drawer Trigger */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-[#181818] border border-[#282828] p-0.5 rounded">
             <button
               onClick={() => {
                 playClick();
                 onViewChange('workout');
               }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+              className={`px-3 py-1 rounded-sm font-display font-bold uppercase tracking-wider text-sm transition cursor-pointer ${
                 activeView === 'workout'
-                  ? 'bg-amber-500 text-iron-950 shadow-sm font-black'
-                  : 'text-iron-400 hover:text-white'
+                  ? 'bg-[#FF5500] text-[#111111]'
+                  : 'text-[#9A978E] hover:text-[#F5F3EF]'
               }`}
             >
-              <Dumbbell className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{lang === 'sv' ? 'Pass' : 'Workout'}</span>
+              {lang === 'sv' ? 'Dagens Pass' : 'Workout'}
             </button>
             <button
               onClick={() => {
                 playClick();
                 onViewChange('history');
               }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+              className={`px-3 py-1 rounded-sm font-display font-bold uppercase tracking-wider text-sm transition cursor-pointer ${
                 activeView === 'history'
-                  ? 'bg-amber-500 text-iron-950 shadow-sm font-black'
-                  : 'text-iron-400 hover:text-white'
+                  ? 'bg-[#FF5500] text-[#111111]'
+                  : 'text-[#9A978E] hover:text-[#F5F3EF]'
               }`}
             >
-              <Calendar className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{lang === 'sv' ? 'Historik' : 'History'}</span>
+              {lang === 'sv' ? 'Loggbok & 1RM' : 'Logbook'}
             </button>
           </div>
 
-          {/* Quick Plate Calculator Button */}
           <button
             onClick={() => {
               playClick();
-              onOpenPlateCalc();
+              onOpenProgramSelector();
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-iron-800 bg-iron-900 hover:bg-iron-850 hover:border-amber-500/40 text-amber-400 text-xs font-bold transition cursor-pointer"
-            title={lang === 'sv' ? 'Öppna Viktskivskalkylator' : 'Open Barbell Plate Calculator'}
+            className="p-2 rounded bg-[#181818] border border-[#282828] hover:border-[#FF5500] text-[#9A978E] hover:text-[#F5F3EF] transition cursor-pointer relative"
+            title={lang === 'sv' ? 'Program, Profil & Inställningar' : 'Program, Profile & Settings'}
           >
-            <Disc3 className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">
-              {lang === 'sv' ? 'Skivor' : 'Plates'}
-            </span>
+            <SlidersHorizontal className="w-4 h-4" />
+            {profile.isCloudSynced && (
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] absolute top-1 right-1" />
+            )}
           </button>
 
-          {/* Profile & Cloud Sync Button */}
           <button
             onClick={() => {
               playClick();
               onOpenSyncModal();
             }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
-              profile.isCloudSynced
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
-                : 'bg-iron-900 border-iron-800 text-iron-300 hover:border-amber-500/40 hover:text-white'
-            }`}
-            title={profile.isCloudSynced ? 'Synkad till databas' : 'Lokal lagring (Klicka för att synka/byta profil)'}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#181818] border border-[#282828] hover:border-[#FF5500] text-xs font-mono text-[#9A978E] hover:text-[#F5F3EF] transition cursor-pointer"
+            title={lang === 'sv' ? 'Molnsynk & Profil' : 'Cloud Sync & Profile'}
           >
             <span
-              className={`w-2 h-2 rounded-full ${
-                profile.isCloudSynced ? 'bg-emerald-400 animate-pulse' : 'bg-iron-500'
+              className={`w-1.5 h-1.5 rounded-full ${
+                profile.isCloudSynced ? 'bg-[#FF5500]' : 'bg-[#6E6C65]'
               }`}
             />
-            <span className="hidden sm:inline truncate max-w-[80px]">
-              {profile.displayName || profile.username || (lang === 'sv' ? 'Profil' : 'Profile')}
+            <span className="truncate max-w-[76px]">
+              {profile.displayName || profile.username || (lang === 'sv' ? 'Synk' : 'Sync')}
             </span>
-            <User className="w-3.5 h-3.5 sm:hidden" />
-          </button>
-
-          {/* Language Switch */}
-          <button
-            onClick={() => {
-              playClick();
-              onLanguageChange(lang === 'sv' ? 'en' : 'sv');
-            }}
-            className="px-2 py-1.5 rounded-xl border border-iron-800 bg-iron-900 hover:bg-iron-850 text-iron-300 hover:text-white text-xs font-bold transition flex items-center gap-1"
-            title="Byt språk / Switch Language"
-          >
-            <span>{lang === 'sv' ? '🇸🇪' : '🇬🇧'}</span>
           </button>
         </div>
       </div>

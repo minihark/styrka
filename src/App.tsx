@@ -86,7 +86,7 @@ export function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-iron-950 text-slate-100 font-sans">
+    <div className="flex flex-col min-h-screen w-full bg-[#111111] text-[#F5F3EF] font-sans">
       {/* Top Navigation */}
       <Navbar
         currentProgram={currentProgram}
@@ -101,7 +101,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7">
+      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-5 sm:py-7">
         {activeView === 'workout' ? (
           <WorkoutActiveSession
             program={currentProgram}
@@ -155,7 +155,7 @@ export function App() {
         />
       )}
 
-      {/* Program Selector Modal */}
+      {/* Program & Settings Drawer */}
       <ProgramSelectorModal
         programs={programs}
         activeProgramId={activeProgramId}
@@ -163,6 +163,10 @@ export function App() {
         onClose={() => setIsProgramSelectorOpen(false)}
         onSelectProgram={handleSelectProgram}
         lang={lang}
+        onLanguageChange={setLang}
+        profile={profile}
+        onProfileChange={setProfile}
+        onOpenSyncModal={() => setIsSyncModalOpen(true)}
       />
 
       {/* Cloud Sync & Profile Modal */}
@@ -175,10 +179,8 @@ export function App() {
       />
 
       {/* Minimal Craft Footer */}
-      <footer className="border-t border-iron-800/60 py-6 text-center text-xs text-iron-500">
-        <p>
-          Styrka — Harkco Daily Apps • Byggd för lyftare och partners
-        </p>
+      <footer className="border-t border-[#222222] py-5 text-center text-[11px] font-mono text-[#6E6C65]">
+        <p>STYRKA 5×5 • HARKCO DAILY APPS</p>
       </footer>
     </div>
   );
