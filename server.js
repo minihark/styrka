@@ -74,7 +74,7 @@ const stmtUpsertProfile = db.prepare(`
 // Serve static frontend from dist
 const serve = sirv('dist', {
   single: true,
-  dev: false,
+  dev: true,
   etag: true,
   dotfiles: false,
 });
