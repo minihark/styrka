@@ -1,5 +1,7 @@
 # 🏋️ Styrka — 5x5 Workout Journal & Strength Tracker
 
+[![Styrka Uptime](https://vakt.apps.harkco.se/badge/styrka.svg?metric=uptime)](https://vakt.apps.harkco.se)
+
 **Styrka** is a tactile, linear progression workout journal designed for the gym. Built for lifters following 5x5 (StrongLifts style) with full flexibility to swap barbell and dumbbell variations, discreet form guides for partners/beginners, automatic workout cycling, and persistent cloud backup via SQLite.
 
 Part of the **Harkco Daily Apps** suite.

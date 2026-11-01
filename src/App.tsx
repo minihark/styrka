@@ -179,8 +179,23 @@ export function App() {
       />
 
       {/* Minimal Craft Footer */}
-      <footer className="border-t border-[#222222] py-5 text-center text-[11px] font-mono text-[#6E6C65]">
+      <footer className="border-t border-[#222222] py-5 px-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-center text-[11px] font-mono text-[#6E6C65]">
         <p>STYRKA 5×5 • HARKCO DAILY APPS</p>
+        <a
+          href="https://vakt.apps.harkco.se"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Styrka Status on Harkco Vakt"
+          className="inline-block hover:opacity-90 transition-opacity"
+        >
+          <img
+            src="https://vakt.apps.harkco.se/badge/styrka.svg"
+            alt="Styrka: operational"
+            height="20"
+            className="h-5 inline-block"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </a>
       </footer>
     </div>
   );
